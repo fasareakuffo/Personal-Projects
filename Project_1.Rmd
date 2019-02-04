@@ -1,0 +1,105 @@
+---
+title: "Data Science Project"
+output: html_notebook
+---
+
+```{r}
+#import libraries
+library(ggplot2)
+library(ggthemes)
+library(dplyr)
+library(corrgram)
+library(corrplot)
+library(caTools)
+```
+
+
+```{r}
+#Importing dataset
+df = read.csv('Admission_Predict_Ver1.1.csv')
+head(df)
+str(df)
+```
+The dataset has 500 observations with 9 variables. Most of the variables are in numeric and integer as such will not have to be concern with factor variables.
+I want to go ahead and explore the data to understand it very well
+
+```{r}
+# Drop the  Serial No. columns of the dataframe since we will not need it in our analysis
+dataset <- select (df,-c(Serial.No.))
+```
+
+```{r}
+#I want to know the descriptive statistics of the data
+summary(dataset)
+```
+
+```{r}
+#I want to check if there are any missin values(na) in my data set
+any(is.na(dataset))
+```
+The result shows there are no missing values(na) values in the dataset
+
+```{r}
+#Visualize the data to see the relationship between variables
+num.col <- sapply(dataset, is.numeric)
+cor.data <- cor(dataset[,num.col])
+print(cor.data)
+print(corrplot(cor.data, method = 'color'))
+
+ggplot(dataset, aes(x=Chance.of.Admit)) + 
+    geom_histogram(aes(y=..density..),      
+                   bins = 20,
+                   colour="black", fill="skyblue") +
+    geom_density(alpha=.2, fill="#FF6666") + 
+  ggtitle('Frequency distribution of Chance of Admit')
+```
+The results shows that on average there is a good correlation between the various variables.
+```{r}
+#Splitting the datatset in to training set and testing set
+set.seed(123)
+split = sample.split(dataset$Chance.of.Admit, SplitRatio = 0.7)
+
+training_set = subset(dataset, split == TRUE)
+#70%  of the dataset will be used for training
+
+test_set = subset(dataset, split == FALSE)
+#30% of the dataset will be used for testing
+```
+
+
+```{r}
+#Building the multiple regression model
+model = lm(formula = Chance.of.Admit ~ .,data = training_set)
+
+summary(model)
+
+#Predicting the Test set results
+y_pred = predict(model, newdata = test_set)
+y_pred
+```
+From the model, it can be seen that GRE score, CGPA, LOR, and Research are highly significance to the Chance of Admit. TOEFL and SOP are least significant. University Rating have no significnace to a persons chance of getting admission.
+
+```{r}
+#Plotting the residuals
+res <- residuals(model) 
+head(res)
+res <- as.data.frame(res)
+ggplot(res,aes(res)) + geom_histogram(fill = 'blue', alpha = 0.5)
+```
+This residuals shows the diference between the actual data points and the predicted regression model
+
+```{r}
+#Testing the model with the testing dataset
+prediction <- predict(model,test_set)
+
+results <- cbind(prediction, test_set$Chance.of.Admit)
+colnames(results) <- c('Predicted', 'Actual')
+print(results)
+```
+```{r}
+#Use Backward elimination to build an optimal model
+model1 = lm(formula = Chance.of.Admit ~ GRE.Score + TOEFL.Score + SOP + LOR + CGPA + Research, data = training_set)
+
+summary(model1)
+```
+
